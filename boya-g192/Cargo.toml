@@ -1,0 +1,8 @@
+[package]
+name = "boya-g192"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+byteorder.workspace = true
+thiserror.workspace = true
