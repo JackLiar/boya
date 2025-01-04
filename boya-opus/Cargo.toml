@@ -1,0 +1,31 @@
+[package]
+name = "boya-opus"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = { workspace = true }
+byteorder = { workspace = true }
+combine = "4"
+thiserror = "2"
+
+[[example]]
+name = "opus-demo"
+
+[dev-dependencies]
+anyhow = { workspace = true }
+byteorder = { workspace = true }
+clap = { version = "4" }
+env_logger = { version = "0.11" }
+hex = { workspace = true }
+log = { workspace = true }
+
+[features]
+default = []
+
+custom-mode = []
+deep-plc = []
+dred = []
+fixed-point = []
+float = []
+osce = []
