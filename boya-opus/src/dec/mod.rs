@@ -123,7 +123,7 @@ impl OpusDecoder {
 
         let mut num_of_samples = 0;
         for frame in frames {
-            let nos = match self.decode_frame(frame, 0, false) {
+            let nos = match self.decode_frame(frame, nos - num_of_samples, false) {
                 Ok(nos) => nos,
                 Err(_) => return Ok(0),
             };
@@ -262,6 +262,7 @@ impl OpusDecoder {
         if mode != Mode::Silk {
             let celt_frame_size = f20.min(frame_size);
             if self.prev_mode != Some(mode) && self.prev_mode.is_some() && !self.prev_redundancy {
+                self.celt_decoder.decode_with_ec_dred(data);
                 // TODO: reset state
             }
         }
