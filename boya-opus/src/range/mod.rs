@@ -1,3 +1,5 @@
+use crate::Result;
+
 /// The number of bits to output at a time.
 pub const EC_SYM_BITS: u32 = 8;
 /// The total number of bits in each of the state registers.
@@ -13,129 +15,106 @@ pub const EC_CODE_BOT: u32 = EC_CODE_TOP >> EC_SYM_BITS;
 /// The number of bits available for the last, partial symbol in the code field.
 pub const EC_CODE_EXTRA: u32 = (EC_CODE_BITS - 2) % EC_SYM_BITS + 1;
 
-#[derive(Clone, Debug, Default)]
-pub struct Context {
-    pub buf: Vec<u8>,
-    pub end_offs: usize,
-    pub end_window: u32,
-    pub n_end_bits: i32,
-    pub n_bits_total: u32,
-    pub offs: usize,
-    pub rng: u32,
-    pub val: u32,
-    pub ext: u32,
-    pub rem: u8,
-    pub err: i32,
-}
-
-impl Context {
-    pub fn new() -> Self {
-        let mut ctx = Self::default();
-        ctx.n_bits_total =
-            EC_CODE_BITS + 1 - ((EC_CODE_BITS - EC_CODE_EXTRA) / EC_SYM_BITS) * EC_SYM_BITS;
-        ctx.rng = 1 << EC_CODE_EXTRA;
-        ctx
-    }
-
-    pub fn read_byte(&mut self) -> u8 {
-        if self.offs < self.buf.len() {
-            let ret = self.buf[self.offs];
-            self.offs += 1;
-            ret
-        } else {
-            0
-        }
-    }
-
-    pub fn normalize(&mut self) {
-        while self.rng <= EC_CODE_BOT {
-            self.n_bits_total += EC_SYM_BITS;
-            self.rng <<= EC_SYM_BITS;
-            let mut sym = self.rem as u32;
-            self.rem = self.read_byte();
-            sym = (sym << EC_SYM_BITS | self.rem as u32) >> (EC_SYM_BITS - EC_CODE_EXTRA);
-            self.val = ((self.val << EC_SYM_BITS) + (EC_SYM_MAX & !sym)) & (EC_CODE_TOP - 1);
-        }
-    }
-
-    pub fn decode_bit_logp(&mut self, logp: u8) -> bool {
-        let mut r = self.rng;
-        let mut d = self.val;
-        let mut s = r >> logp;
-        let ret = d < s;
-        if !ret {
-            self.val = d - s;
-            self.rng = r - s;
-        } else {
-            self.rng = s;
-        }
-        ret
-    }
-}
-
 pub struct RangeDecoder<'a> {
+    /// Size of the current range
     range: u32,
-    value: u32,
+    /// Difference between the high end of the current range and the actual coded value, minus one
+    val: u32,
     stream: &'a [u8],
-    stream_pos: usize,
+    bits_read: usize,
 }
 
 impl<'a> RangeDecoder<'a> {
-    /// 创建一个新的 Range Decoder
-    pub fn new(stream: &'a [u8]) -> Self {
-        let mut decoder = RangeDecoder {
-            range: 0xFFFFFFFF, // 初始化区间为全范围
-            value: 0,
-            stream,
-            stream_pos: 0,
+    pub fn try_new(stream: &'a [u8]) -> Result<Self> {
+        let mut dec = match stream.first() {
+            None => todo!(),
+            Some(b0) => RangeDecoder {
+                range: 128,
+                val: (127 - (b0 >> 1)) as u32,
+                stream,
+                bits_read: 33,
+            },
         };
-        // 读取前4个字节初始化 value
-        for _ in 0..4 {
-            decoder.value = (decoder.value << 8) | decoder.read_byte();
-        }
-        decoder
+        dec.normalize();
+        Ok(dec)
     }
 
-    /// 读取压缩流中的下一个字节
-    fn read_byte(&mut self) -> u32 {
-        if self.stream_pos < self.stream.len() {
-            let byte = self.stream[self.stream_pos];
-            self.stream_pos += 1;
-            byte as u32
+    pub fn tell(&self) -> usize {
+        println!(
+            "{} {} {} {}",
+            self.bits_read,
+            32,
+            self.range,
+            self.range.leading_zeros()
+        );
+        self.bits_read - (32 - self.range.leading_zeros() as usize)
+    }
+
+    pub fn tell_frac(self) -> usize {
+        unimplemented!()
+    }
+
+    pub fn tot_bits(&self) -> usize {
+        self.stream.len() * 8
+    }
+
+    pub fn decode(&self, ft: u32) -> u16 {
+        (ft - ((self.val / (self.range / ft)) + 1).min(ft)) as u16
+    }
+
+    pub fn decode_bin(&self, bits: usize) -> u16 {
+        ((1 << bits) - (self.val / (self.range >> bits) + 1).min(1 << bits)) as u16
+    }
+
+    pub fn decode_bit_logp(&mut self, logp: u32) -> u8 {
+        let s = self.range >> logp;
+        let ret = self.val < s;
+        if !ret {
+            self.val -= s;
+            self.range -= s;
         } else {
-            0 // 若比特流结束则返回 0
+            self.range = s;
         }
+        self.normalize();
+        ret as u8
     }
 
-    /// 解码给定符号的区间
-    pub fn decode(&mut self, cum_prob_low: u32, cum_prob_high: u32, total: u32) -> bool {
-        // 计算当前的区间宽度
-        let range_div = self.range / total;
+    pub fn decode_icdf(&self) {}
 
-        // 计算新的 upper 和 lower 界限
-        let low = cum_prob_low * range_div;
-        let high = cum_prob_high * range_div;
-
-        let target = self.value - low;
-        if target < high - low {
-            self.range = high - low;
-            self.normalize();
-            true
+    pub fn update(&mut self, fl: u32, fh: u32, ft: u32) {
+        let s = (self.range / ft) * (ft - fh);
+        self.val -= s;
+        if fl > 0 {
+            self.range = (self.range / ft) * (fh - fl)
         } else {
-            false
+            self.range -= s
         }
+        self.normalize();
     }
 
-    /// 归一化区间，确保 range 足够大，读取更多比特流来调整 value
-    fn normalize(&mut self) {
-        while self.range <= 0x00FFFFFF {
+    pub fn normalize(&mut self) {
+        while self.range <= 2u32.pow(23) {
+            self.bits_read += 8;
             self.range <<= 8;
-            self.value = (self.value << 8) | self.read_byte();
+            let sym = match self.read_byte() {
+                None => 0,
+                Some(prev) => match self.stream.first() {
+                    Some(next) => prev << 7 | (next | 0b0111_1111),
+                    None => 0,
+                },
+            };
+
+            self.val = ((self.val << 8) + (255 - sym) as u32) & 0x7FFFFFFF;
         }
     }
 
-    /// 返回当前区间中的值，方便外部逻辑推导解码的符号
-    pub fn get_scaled_value(&self, total: u32) -> u32 {
-        self.value / (self.range / total)
+    pub fn read_byte(&mut self) -> Option<u8> {
+        match self.stream.split_first() {
+            None => None,
+            Some((b, rem)) => {
+                self.stream = rem;
+                Some(*b)
+            }
+        }
     }
 }

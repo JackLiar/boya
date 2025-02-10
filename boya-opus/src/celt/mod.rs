@@ -1,6 +1,6 @@
 use std::ops::Range;
 
-use crate::{Channels, Complexity, Result, SampleRate, MAX_PERIOD};
+use crate::{range::RangeDecoder, Channels, Complexity, Result, SampleRate, MAX_PERIOD};
 
 pub const PLC_PITCH_LAG_MAX: isize = 720;
 pub const PLC_PITCH_LAG_MIN: isize = 100;
@@ -101,7 +101,7 @@ pub fn mode_48000_960_120() -> Mode {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct CeltDecoder {
     pub mode: Mode,
     pub overlap: i32,
@@ -181,7 +181,25 @@ impl CeltDecoder {
         true
     }
 
-    pub fn decode_with_ec_dred(&mut self) -> Result<()> {
+    pub fn decode_with_ec_dred(&mut self, data: &[u8]) -> Result<()> {
+        let mut silence = 0;
+        let mut post_filter_gain = 0;
+        let mut post_filter_pitch = 0;
+        let mut post_filter_tapset = 0;
+
+        let mut dec = RangeDecoder::try_new(data)?;
+        let used = dec.tell();
+
+        silence = if used >= dec.tot_bits() {
+            1
+        } else if used == 1 {
+            dec.decode_bit_logp(15)
+        } else {
+            0
+        };
+
+        panic!("tell: {used}, silence: {silence}");
+        if silence != 0 {}
         Ok(())
     }
 }

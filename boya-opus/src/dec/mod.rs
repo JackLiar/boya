@@ -2,6 +2,7 @@ use std::io::Write;
 
 use byteorder::{BigEndian, WriteBytesExt};
 
+use crate::celt::CeltDecoder;
 use crate::errors::{Error, Result};
 use crate::silk::dec::Decoder as SilkDecoder;
 use crate::utils::f32toint16;
@@ -13,7 +14,7 @@ use packet::{get_nb_samples, parse_opus_pkt};
 
 #[derive(Clone, Debug, Default)]
 pub struct OpusDecoder {
-    celt_dec_offset: i32,
+    celt_decoder: CeltDecoder,
     silk_decoder: SilkDecoder,
     /// buffer for silk decoder
     silk_pcm: Vec<u8>,
@@ -108,13 +109,13 @@ impl OpusDecoder {
 
         let (toc, frames) = parse_opus_pkt(data, self_delimited)
             .map_err(|e| Error::InvalidPacket(e.to_string()))?;
-        println!(
-            "damn: {:?} {:?} {:?} {:?}",
-            toc.mode(),
-            toc.bandwidth(),
-            toc.frame_size(),
-            toc.channels()
-        );
+        // println!(
+        //     "damn: {:?} {:?} {:?} {:?}",
+        //     toc.mode(),
+        //     toc.bandwidth(),
+        //     toc.frame_size(),
+        //     toc.channels()
+        // );
 
         self.mode = toc.mode();
         self.bandwidth = toc.bandwidth();
@@ -262,10 +263,13 @@ impl OpusDecoder {
         if mode != Mode::Silk {
             let celt_frame_size = f20.min(frame_size);
             if self.prev_mode != Some(mode) && self.prev_mode.is_some() && !self.prev_redundancy {
-                self.celt_decoder.decode_with_ec_dred(data);
                 // TODO: reset state
             }
+            self.celt_decoder.decode_with_ec_dred(data);
         }
+
+        self.prev_mode = Some(mode);
+        self.prev_redundancy = redundancy && !celt2silk;
 
         Ok(0)
     }
