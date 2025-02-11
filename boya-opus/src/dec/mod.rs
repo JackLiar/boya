@@ -125,7 +125,6 @@ impl OpusDecoder {
         self.bandwidth = toc.bandwidth();
         self.frame_size = toc.samples_per_frame(self.fs);
         self.stream_channels = toc.channels();
-        self.celt_decoder.stream_channels = toc.channels();
 
         let mut num_of_samples = 0;
         for frame in frames {
@@ -253,9 +252,9 @@ impl OpusDecoder {
                 BandWidth::SuperWide => 19,
                 BandWidth::Full => 21,
             };
-            // TODO: CELT decoder control
+            self.celt_decoder.start_end.end = endband;
         }
-        // TODO: CELT decoder control
+        self.celt_decoder.stream_channels = self.stream_channels;
 
         let redundant_audio_size = if redundancy {
             f5 * self.channels as usize
