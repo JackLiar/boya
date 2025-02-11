@@ -1,2 +1,6 @@
 /target
 Cargo.lock
+*.bit
+*.dec
+*.tar
+*.gz
