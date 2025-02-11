@@ -24,7 +24,6 @@ pub struct RangeDecoder<'a> {
     val: u32,
     stream: &'a [u8],
     bits_read: usize,
-    rem: u8,
 }
 
 impl<'a> RangeDecoder<'a> {
@@ -40,13 +39,8 @@ impl<'a> RangeDecoder<'a> {
                 val: (127 - (b0 >> 1)) as u32,
                 stream,
                 bits_read: 9,
-                rem: 0,
             },
         };
-
-        if let Some(b) = dec.read() {
-            dec.rem = b;
-        }
 
         dec.normalize();
         Ok(dec)
@@ -109,36 +103,34 @@ impl<'a> RangeDecoder<'a> {
         while self.range <= 2u32.pow(23) {
             self.bits_read += 8;
             self.range <<= 8;
-            let sym = match self.read() {
+
+            let low = match self.stream.split_first() {
                 None => 0,
-                Some(b) => {
-                    let s = self.rem << 7 | (b | 0b0111_1111);
-                    self.rem = b;
-                    s
+                Some((b, rem)) => {
+                    self.stream = rem;
+                    *b
                 }
             };
 
+            let high = match self.stream.first() {
+                None => 0,
+                Some(b) => *b,
+            };
+
+            let sym = low << 7 | (high | 0b0111_1111);
             self.val = ((self.val << 8) + (255 - sym) as u32) & 0x7FFFFFFF;
         }
     }
+}
 
-    pub fn read(&mut self) -> Option<u8> {
-        match self.stream.split_first() {
-            None => None,
-            Some((b, rem)) => {
-                self.stream = rem;
-                Some(*b)
-            }
-        }
-    }
+#[cfg(test)]
+mod test {
+    use crate::Error;
 
-    pub fn read_from_end(&mut self) -> Option<u8> {
-        match self.stream.split_last() {
-            None => None,
-            Some((b, rem)) => {
-                self.stream = rem;
-                Some(*b)
-            }
-        }
+    use super::*;
+
+    #[test]
+    fn test_empty_input() {
+        assert!(matches!(RangeDecoder::try_new(&[]), Err(Error::IoError(_))))
     }
 }
