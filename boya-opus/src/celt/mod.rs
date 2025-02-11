@@ -1,6 +1,7 @@
 use std::ops::Range;
 
-use crate::{range::RangeDecoder, Channels, Complexity, Result, SampleRate, MAX_PERIOD};
+use crate::range::RangeDecoder;
+use crate::{Channels, Complexity, Error, Result, SampleRate, MAX_PERIOD};
 
 pub const PLC_PITCH_LAG_MAX: isize = 720;
 pub const PLC_PITCH_LAG_MIN: isize = 100;
@@ -148,8 +149,24 @@ macro_rules! celt_assert {
 }
 
 impl CeltDecoder {
-    pub fn new(sr: SampleRate, chls: Channels) -> Self {
-        Self::default()
+    pub fn new(chls: Channels, mode: Mode) -> Self {
+        let disable_inv = if cfg!(not(feature = "disable-update-draft")) {
+            chls == Channels::Mono
+        } else {
+            false
+        };
+
+        Self {
+            overlap: mode.overlap,
+            stream_channels: chls,
+            channels: chls,
+            start_end: 0..mode.effEBands,
+            signalling: true,
+            disable_inv,
+            mode,
+            down_sample: 1,
+            ..Default::default()
+        }
     }
 
     pub fn validate(&self) -> bool {
@@ -182,10 +199,18 @@ impl CeltDecoder {
     }
 
     pub fn decode_with_ec_dred(&mut self, data: &[u8]) -> Result<()> {
+        if !self.validate() {
+            return Err(Error::InvalidDecoderParam("".to_string()));
+        }
+
         let mut silence = 0;
         let mut post_filter_gain = 0;
         let mut post_filter_pitch = 0;
         let mut post_filter_tapset = 0;
+
+        if self.loss_duration == 0 {
+            self.skip_plc = false;
+        }
 
         let mut dec = RangeDecoder::try_new(data)?;
         let used = dec.tell();

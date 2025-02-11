@@ -2,7 +2,7 @@ use std::io::Write;
 
 use byteorder::{BigEndian, WriteBytesExt};
 
-use crate::celt::CeltDecoder;
+use crate::celt::{mode_48000_960_120, CeltDecoder};
 use crate::errors::{Error, Result};
 use crate::silk::dec::Decoder as SilkDecoder;
 use crate::utils::f32toint16;
@@ -60,7 +60,10 @@ impl OpusDecoder {
     }
 
     pub fn new(fs: SampleRate, channels: Channels) -> Self {
+        let mode = mode_48000_960_120();
+        let celt_decoder = CeltDecoder::new(channels, mode);
         Self {
+            celt_decoder,
             fs,
             channels,
             stream_channels: channels,
