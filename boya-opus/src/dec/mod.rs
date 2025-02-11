@@ -61,7 +61,8 @@ impl OpusDecoder {
 
     pub fn new(fs: SampleRate, channels: Channels) -> Self {
         let mode = mode_48000_960_120();
-        let celt_decoder = CeltDecoder::new(channels, mode);
+        let mut celt_decoder = CeltDecoder::new(channels, mode);
+        celt_decoder.signalling = false;
         Self {
             celt_decoder,
             fs,
@@ -124,6 +125,7 @@ impl OpusDecoder {
         self.bandwidth = toc.bandwidth();
         self.frame_size = toc.samples_per_frame(self.fs);
         self.stream_channels = toc.channels();
+        self.celt_decoder.stream_channels = toc.channels();
 
         let mut num_of_samples = 0;
         for frame in frames {

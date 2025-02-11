@@ -156,7 +156,7 @@ impl CeltDecoder {
             false
         };
 
-        Self {
+        let mut dec = Self {
             overlap: mode.overlap,
             stream_channels: chls,
             channels: chls,
@@ -166,7 +166,13 @@ impl CeltDecoder {
             mode,
             down_sample: 1,
             ..Default::default()
-        }
+        };
+        dec.reset();
+        dec
+    }
+
+    pub fn reset(&mut self) {
+        self.skip_plc = true;
     }
 
     pub fn validate(&self) -> bool {
