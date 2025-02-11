@@ -204,21 +204,44 @@ impl CeltDecoder {
         true
     }
 
-    pub fn decode_with_ec_dred(&mut self, data: &[u8]) -> Result<()> {
+    pub fn decode_with_ec_dred(&mut self, data: &[u8], frame_size: usize) -> Result<()> {
         if !self.validate() {
             return Err(Error::InvalidDecoderParam("".to_string()));
         }
 
         let mut silence = 0;
-        let mut post_filter_gain = 0;
-        let mut post_filter_pitch = 0;
-        let mut post_filter_tapset = 0;
+        let mut old_band_e: &mut [u16] = &mut [];
+
+        let lm = match (0..self.mode.maxLM + 1)
+            .find(|lm| (self.mode.shortMdctSize as usize) << lm == frame_size)
+        {
+            None => todo!("Invalid decoder param"),
+            Some(lm) => lm,
+        };
+        let m = 1 << lm;
+        let n = m * self.mode.shortMdctSize;
+
+        let mut eff_end = self.start_end.end;
+        if eff_end > self.mode.effEBands {
+            eff_end = self.mode.effEBands;
+        }
+
+        if data.is_empty() {
+            todo!("decode lost")
+        }
 
         if self.loss_duration == 0 {
             self.skip_plc = false;
         }
 
+        if self.stream_channels == Channels::Mono {
+            for i in 0..self.mode.nbEBands as usize {
+                old_band_e[i] = old_band_e[i].max(old_band_e[self.mode.nbEBands as usize + i]);
+            }
+        }
+
         let mut dec = RangeDecoder::try_new(data)?;
+        let tot_bits = data.len() * 8;
         let used = dec.tell();
 
         silence = if used >= dec.tot_bits() {
@@ -229,8 +252,19 @@ impl CeltDecoder {
             0
         };
 
-        panic!("tell: {used}, silence: {silence}");
-        if silence != 0 {}
+        if silence != 0 {
+            // Pretend we've read all the remaining bits
+        }
+
+        let mut postfilter_gain = 0;
+        let mut postfilter_pitch = 0;
+        let mut postfilter_tapset = 0;
+        if self.start_end.start == 0 && used + 16 < tot_bits {
+            if dec.decode_bit_logp(1) != 0 {
+                let octave = dec.decode_uint(6);
+                //  postfilter_pitch = (16<<octave) + dec.decode_bi
+            }
+        }
         Ok(())
     }
 }

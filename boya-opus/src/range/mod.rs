@@ -47,13 +47,6 @@ impl<'a> RangeDecoder<'a> {
     }
 
     pub fn tell(&self) -> usize {
-        println!(
-            "{} {} {} {}",
-            self.bits_read,
-            32,
-            self.range,
-            self.range.leading_zeros()
-        );
         self.bits_read - (32 - self.range.leading_zeros() as usize)
     }
 
@@ -120,6 +113,10 @@ impl<'a> RangeDecoder<'a> {
             let sym = low << 7 | (high | 0b0111_1111);
             self.val = ((self.val << 8) + (255 - sym) as u32) & 0x7FFFFFFF;
         }
+    }
+
+    pub fn decode_uint(&mut self, fh: u32) -> u32 {
+        unimplemented!()
     }
 }
 

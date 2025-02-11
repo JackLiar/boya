@@ -269,7 +269,7 @@ impl OpusDecoder {
             if self.prev_mode != Some(mode) && self.prev_mode.is_some() && !self.prev_redundancy {
                 // TODO: reset state
             }
-            self.celt_decoder.decode_with_ec_dred(data);
+            self.celt_decoder.decode_with_ec_dred(data, celt_frame_size);
         }
 
         self.prev_mode = Some(mode);
