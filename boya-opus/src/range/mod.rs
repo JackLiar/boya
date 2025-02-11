@@ -1,3 +1,5 @@
+use std::io::{Error as IOError, ErrorKind};
+
 use crate::Result;
 
 /// The number of bits to output at a time.
@@ -22,19 +24,30 @@ pub struct RangeDecoder<'a> {
     val: u32,
     stream: &'a [u8],
     bits_read: usize,
+    rem: u8,
 }
 
 impl<'a> RangeDecoder<'a> {
     pub fn try_new(stream: &'a [u8]) -> Result<Self> {
         let mut dec = match stream.first() {
-            None => todo!(),
+            None => {
+                return Err(
+                    IOError::new(ErrorKind::UnexpectedEof, "Empty input for RangeDecoder").into(),
+                )
+            }
             Some(b0) => RangeDecoder {
                 range: 128,
                 val: (127 - (b0 >> 1)) as u32,
                 stream,
-                bits_read: 33,
+                bits_read: 9,
+                rem: 0,
             },
         };
+
+        if let Some(b) = dec.read() {
+            dec.rem = b;
+        }
+
         dec.normalize();
         Ok(dec)
     }
@@ -96,20 +109,31 @@ impl<'a> RangeDecoder<'a> {
         while self.range <= 2u32.pow(23) {
             self.bits_read += 8;
             self.range <<= 8;
-            let sym = match self.read_byte() {
+            let sym = match self.read() {
                 None => 0,
-                Some(prev) => match self.stream.first() {
-                    Some(next) => prev << 7 | (next | 0b0111_1111),
-                    None => 0,
-                },
+                Some(b) => {
+                    let s = self.rem << 7 | (b | 0b0111_1111);
+                    self.rem = b;
+                    s
+                }
             };
 
             self.val = ((self.val << 8) + (255 - sym) as u32) & 0x7FFFFFFF;
         }
     }
 
-    pub fn read_byte(&mut self) -> Option<u8> {
+    pub fn read(&mut self) -> Option<u8> {
         match self.stream.split_first() {
+            None => None,
+            Some((b, rem)) => {
+                self.stream = rem;
+                Some(*b)
+            }
+        }
+    }
+
+    pub fn read_from_end(&mut self) -> Option<u8> {
+        match self.stream.split_last() {
             None => None,
             Some((b, rem)) => {
                 self.stream = rem;
