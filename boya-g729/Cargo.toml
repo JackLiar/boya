@@ -1,0 +1,32 @@
+[package]
+name = "boya-g729"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bitvec = { workspace = true }
+byteorder = { workspace = true }
+itertools = { workspace = true }
+saturating_cast = { workspace = true }
+
+
+[dev-dependencies]
+anyhow = { workspace = true }
+boya-g192 = { path = "../boya-g192" }
+hex = { workspace = true }
+
+[features]
+default = ["std"]
+
+std = []
+annexes-a = []
+annexes-b = []
+annexes-c = []
+annexes-c-plus = []
+annexes-d = []
+annexes-e = []
+annexes-f = []
+annexes-g = []
+annexes-h = []
+annexes-i = []
+annexes-j = []
