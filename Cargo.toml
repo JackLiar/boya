@@ -1,5 +1,5 @@
 [workspace]
-members = ["boya-g192"]
+members = ["boya-g192", "boya-g722"]
 resolver = "2"
 
 [workspace.dependencies]
