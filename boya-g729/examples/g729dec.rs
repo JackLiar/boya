@@ -1,12 +1,12 @@
 use std::fs::File;
-use std::io::{BufReader, ErrorKind, Write};
+use std::io::{BufReader, ErrorKind};
 use std::path::PathBuf;
 
 use anyhow::{anyhow, Result};
 
 use boya_g192::bitvec::prelude::*;
 use boya_g192::{next_frame_bits, Error};
-use boya_g729::dec::G729Decoder;
+use boya_g729::dec::float::G729Decoder;
 
 fn main() -> Result<()> {
     let args = std::env::args().collect::<Vec<_>>();

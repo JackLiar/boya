@@ -4,6 +4,7 @@ use byteorder::{BigEndian, WriteBytesExt};
 
 use crate::{L_FRAME, L_INTERPOL, M, PIT_MAX};
 
+pub mod float;
 mod lpc;
 mod lsp;
 pub mod param;
