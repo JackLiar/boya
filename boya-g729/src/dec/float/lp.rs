@@ -46,14 +46,14 @@ impl LinearPrediction {
         }
     }
 
-    fn lsp_prev_update(&mut self, buf: &[f64; 10]) {
+    fn lsp_prev_update(&mut self, buf: &[f64; M]) {
         self.freq_prev[3] = self.freq_prev[2];
         self.freq_prev[2] = self.freq_prev[1];
         self.freq_prev[1] = self.freq_prev[0];
         self.freq_prev[0] = *buf;
     }
 
-    fn lsp_stability(buf: &mut [f64; 10]) {
+    fn lsp_stability(buf: &mut [f64; M]) {
         for j in 0..(buf.len() - 1) {
             let diff = buf[j + 1] - buf[j];
             if diff < 0.0 {

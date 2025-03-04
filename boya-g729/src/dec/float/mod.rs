@@ -27,7 +27,7 @@ impl Default for G729Decoder {
 }
 
 impl G729Decoder {
-    pub fn decode<W: Write>(&mut self, data: &[u8; 10], w: &mut W) -> std::io::Result<usize> {
+    pub fn decode<W: Write>(&mut self, data: &[u8; M], w: &mut W) -> std::io::Result<usize> {
         let mut pst_out = [0i16; 80];
 
         self.decode_ld8k(data);
@@ -44,7 +44,7 @@ impl G729Decoder {
         Ok(0)
     }
 
-    fn decode_ld8k(&mut self, data: &[u8; 10]) {
+    fn decode_ld8k(&mut self, data: &[u8; M]) {
         let mut lsp_new = [0.0f64; M];
         self.param = Parameter::from(data);
 
