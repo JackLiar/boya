@@ -46,14 +46,15 @@ impl G729Decoder {
 
     fn decode_ld8k(&mut self, data: &[u8; M]) {
         let mut lsp_new = [0.0f64; M];
+        let mut az = [[0.0f64; M + 1]; 2];
         self.param = Parameter::from(data);
 
         // Decode the LSPs
         self.lp.decode_lsp(&self.param, &mut lsp_new);
 
-        todo!("Interpolation of LPC for the 2 subframes");
+        self.lp.int_qlpc(&lsp_new, &mut az);
 
-        // self.lsp_old = lsp_new;
+        self.lp.lsp_old = lsp_new;
 
         // todo!("Loop for every subframe in the analysis frame");
 

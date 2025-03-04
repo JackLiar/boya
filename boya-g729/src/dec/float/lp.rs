@@ -1,5 +1,6 @@
 use super::consts::{
-    FG, FG_SUM, FG_SUM_INV, GAP1, GAP2, GAP3, INIT_FREQ_PREV, LSPCB1, LSPCB2, L_LIMIT, M_LIMIT,
+    FG, FG_SUM, FG_SUM_INV, GAP1, GAP2, GAP3, INIT_FREQ_PREV, INIT_LSP_OLD, LSPCB1, LSPCB2,
+    L_LIMIT, M_LIMIT,
 };
 use crate::dec::param::Parameter;
 use crate::M;
@@ -9,6 +10,7 @@ pub struct LinearPrediction {
     pub freq_prev: [[f64; M]; 4],
     /// Previous LSP vector
     pub prev_lsp: [f64; M],
+    pub lsp_old: [f64; M],
     pub prev_ma: bool,
 }
 
@@ -17,6 +19,7 @@ impl LinearPrediction {
         Self {
             freq_prev: [INIT_FREQ_PREV; 4],
             prev_ma: false,
+            lsp_old: INIT_LSP_OLD,
             prev_lsp: INIT_FREQ_PREV,
         }
     }
@@ -129,5 +132,50 @@ impl LinearPrediction {
         for lsp in lsp_q.iter_mut() {
             *lsp = lsp.cos();
         }
+    }
+
+    fn get_lsp_pol(lsp: &[f64; M - 1], f: &mut [f64; M]) {
+        f[0] = 1.0;
+        f[1] = -2.0 * lsp[0];
+        for i in 2..=(M / 2) {
+            let b = -2.0 * lsp[2 * i - 2];
+            f[i] = b * f[i - 1] + 2.0 * f[i - 2];
+            for j in (2..=i - 1).rev() {
+                f[j] += b * f[j - 1] + f[j - 2];
+            }
+            f[1] += b;
+        }
+    }
+
+    fn lsp_az(lsp: &[f64; M], az: &mut [f64; M + 1]) {
+        let mut f1 = [0.0f64; M];
+        let mut f2 = [0.0f64; M];
+        let mut tmp = [0.0f64; M - 1];
+
+        tmp.copy_from_slice(&lsp[0..9]);
+        Self::get_lsp_pol(&tmp, &mut f1);
+
+        tmp.copy_from_slice(&lsp[1..10]);
+        Self::get_lsp_pol(&tmp, &mut f2);
+
+        for i in (1..=(M / 2)).rev() {
+            f1[i] += f1[i - 1];
+            f2[i] -= f2[i - 1];
+        }
+        az[0] = 1.0;
+        for (i, j) in (1..=(M / 2)).zip((6..=M).rev()) {
+            az[i] = 0.5 * (f1[i] + f2[i]);
+            az[j] = 0.5 * (f1[i] - f2[i]);
+        }
+    }
+
+    pub fn int_qlpc(&mut self, lsp_new: &[f64; M], az: &mut [[f64; M + 1]; 2]) {
+        let mut lsp = [0.0; M];
+        for ((l, old), new) in lsp.iter_mut().zip(&self.lsp_old).zip(lsp_new) {
+            *l = *old * 0.5 + *new * 0.5;
+        }
+
+        Self::lsp_az(&lsp, &mut az[0]);
+        Self::lsp_az(lsp_new, &mut az[1]);
     }
 }
