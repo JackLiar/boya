@@ -2,18 +2,21 @@ use std::io::Write;
 
 use byteorder::{BigEndian, WriteBytesExt};
 use lp::LinearPrediction;
+use post_process::PostProcess;
 
 use super::param::Parameter;
 use crate::M;
 
 mod consts;
 mod lp;
+mod post_process;
 
 #[derive(Clone, Debug)]
 pub struct G729Decoder {
     pub param: Parameter,
     pub voicing: i16,
     pub lp: LinearPrediction,
+    pub post_process: PostProcess,
 }
 
 impl Default for G729Decoder {
@@ -22,23 +25,24 @@ impl Default for G729Decoder {
             param: Parameter::default(),
             voicing: 0,
             lp: LinearPrediction::new(),
+            post_process: Default::default(),
         }
     }
 }
 
 impl G729Decoder {
     pub fn decode<W: Write>(&mut self, data: &[u8; M], w: &mut W) -> std::io::Result<usize> {
-        let mut pst_out = [0i16; 80];
+        let mut pst_out = [0.0f64; 80];
 
         self.decode_ld8k(data);
 
         self.voicing = 0;
         self.post_filter();
 
-        self.post_process();
+        self.post_process(&mut pst_out);
 
         for x in pst_out {
-            w.write_i16::<BigEndian>(x)?;
+            // w.write_i16::<BigEndian>(x)?;
         }
 
         Ok(0)
@@ -69,5 +73,7 @@ impl G729Decoder {
 
     fn post_filter(&mut self) {}
 
-    fn post_process(&mut self) {}
+    fn post_process(&mut self, signal: &mut [f64; 80]) {
+        self.post_process.post_process(signal)
+    }
 }
