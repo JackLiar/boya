@@ -41,8 +41,14 @@ impl G729Decoder {
 
         self.post_process(&mut pst_out);
 
-        for x in pst_out {
-            // w.write_i16::<BigEndian>(x)?;
+        for mut x in pst_out {
+            if x >= 0.0 {
+                x += 0.5
+            } else {
+                x -= 0.5;
+            }
+            x = x.clamp(-32768.0, 32767.0);
+            w.write_i16::<BigEndian>(x as i16)?;
         }
 
         Ok(0)
