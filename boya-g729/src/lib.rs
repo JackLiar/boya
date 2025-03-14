@@ -8,9 +8,9 @@ pub const L_SUBFR: usize = 40;
 /// LPC order
 pub const M: usize = 10;
 /// Minimum pitch lag.
-pub const PIT_MAX: usize = 143;
+pub const PIT_MAX: i32 = 143;
 /// Maximum pitch lag.
-pub const PIT_MIN: usize = 20;
+pub const PIT_MIN: i32 = 20;
 /// Length of filter for interpolation
 pub const L_INTERPOL: usize = 10 + 1;
 /// Size of vector of analysis parameters

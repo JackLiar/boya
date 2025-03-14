@@ -26,7 +26,7 @@ pub struct G729Decoder {
     /// Decoder parameters
     pub param: Parameter,
     /// Excitation vector
-    pub exc: [i16; L_FRAME + PIT_MAX + L_INTERPOL],
+    pub exc: [i16; L_FRAME + PIT_MAX as usize + L_INTERPOL],
     pub mem_syn: [i16; 10],
     pub sharp: i16,
     pub old_t0: i16,
@@ -47,7 +47,7 @@ impl Default for G729Decoder {
     fn default() -> Self {
         let mut dec = Self {
             param: Default::default(),
-            exc: [0; L_FRAME + PIT_MAX + L_INTERPOL],
+            exc: [0; L_FRAME + PIT_MAX as usize + L_INTERPOL],
             mem_syn: [0; 10],
             sharp: SHARP_MIN,
             old_t0: 60,
