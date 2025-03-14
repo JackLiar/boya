@@ -192,10 +192,10 @@ impl Parameter {
         param.l3 = p.load_be::<u8>();
 
         let (p, rem) = rem.split_at(8);
-        param.p1 = p.load::<u8>();
+        param.p1 = p.load_be::<u8>();
 
         let (p, rem) = rem.split_at(1);
-        param.p0 = p.load::<u8>() == 0;
+        param.p0 = p.load::<u8>() != 0;
 
         let (p, rem) = rem.split_at(13);
         param.c1 = p.load::<u16>();
