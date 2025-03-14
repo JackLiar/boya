@@ -2,10 +2,10 @@ use std::fs::File;
 use std::io::{BufReader, ErrorKind};
 use std::path::PathBuf;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 
 use boya_g192::bitvec::prelude::*;
-use boya_g192::{next_frame_bits, Error};
+use boya_g192::{Error, next_frame_bits};
 use boya_g729::dec::float::G729Decoder;
 
 fn main() -> Result<()> {
@@ -18,6 +18,7 @@ fn main() -> Result<()> {
     let mut buf = [0u8; 10];
     let mut decoded = vec![];
     let mut bits = BitVec::<u8, Msb0>::new();
+    let mut decoder = G729Decoder::default();
     while !exit {
         buf.fill(0);
         bits.clear();
@@ -41,7 +42,6 @@ fn main() -> Result<()> {
             *b = byte;
         }
 
-        let mut decoder = G729Decoder::default();
         decoder.decode(&buf, &mut decoded)?;
     }
     Ok(())
